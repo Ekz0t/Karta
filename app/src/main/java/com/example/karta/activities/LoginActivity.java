@@ -41,6 +41,7 @@ public class LoginActivity extends AppCompatActivity {
         }
 
         setContentView(R.layout.activity_login);
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(findViewById(android.R.id.content), (v, insets) -> { androidx.core.graphics.Insets bars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars() | androidx.core.view.WindowInsetsCompat.Type.ime()); v.setPadding(bars.left, bars.top, bars.right, bars.bottom); return insets; });
 
         etLoginIdentifier = findViewById(R.id.etLoginIdentifier);
         etLoginPassword = findViewById(R.id.etLoginPassword);
@@ -55,8 +56,8 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void attemptLogin() {
-        String identifier = etLoginIdentifier.getText().toString().trim();
-        String password = etLoginPassword.getText().toString().trim();
+        String identifier = com.example.karta.utils.BonusRules.phone(etLoginIdentifier.getText().toString());
+        String password = etLoginPassword.getText().toString();
 
         if (TextUtils.isEmpty(identifier) || TextUtils.isEmpty(password)) {
             Toast.makeText(this, "Заполните все поля", Toast.LENGTH_SHORT).show();
@@ -76,3 +77,4 @@ public class LoginActivity extends AppCompatActivity {
         }
     }
 }
+

@@ -2,26 +2,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- ============ РАЗРЕШЕНИЯ ============ -->
-
-    <!-- Доступ к камере - понадобится для сканирования QR-кода карты на кассе -->
-    <uses-permission android:name="android.permission.CAMERA" />
-
-    <!-- Доступ в интернет - пригодится, если позже подключишь Firebase или API -->
-    <uses-permission android:name="android.permission.INTERNET" />
-
-    <!-- Камера не обязательна для установки приложения -->
-    <uses-feature
-        android:name="android.hardware.camera"
-        android:required="false" />
-
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
-        android:icon="@mipmap/ic_launcher"
-        android:label="Karta"
-        android:roundIcon="@mipmap/ic_launcher_round"
+        android:icon="@drawable/ic_logo_m"
+        android:label="@string/app_name"
+        android:roundIcon="@drawable/ic_logo_m"
         android:supportsRtl="true"
         android:theme="@style/Theme.Karta"
         tools:targetApi="31">
@@ -49,22 +36,8 @@
             android:exported="false"
             android:theme="@style/Theme.Karta" />
 
-        <!-- ============ АДМИН-ПАНЕЛЬ (добавим позже) ============ -->
-        <!--
-        <activity
-            android:name=".activities.AdminActivity"
-            android:exported="false"
-            android:theme="@style/Theme.Karta" />
-        -->
-
-        <!-- ============ ЭКРАН СКАНЕРА QR-КОДА (добавим позже) ============ -->
-        <!--
-        <activity
-            android:name=".activities.ScanActivity"
-            android:exported="false"
-            android:theme="@style/Theme.Karta" />
-        -->
-
     </application>
 
 </manifest>
+
+

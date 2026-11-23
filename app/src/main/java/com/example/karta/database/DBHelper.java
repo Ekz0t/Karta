@@ -16,7 +16,7 @@ import java.util.Random;
 public class DBHelper extends SQLiteOpenHelper {
 
     private static final String DB_NAME = "loyalty.db";
-    private static final int DB_VERSION = 1;
+    private static final int DB_VERSION = 2;
 
     // Таблица пользователей
     private static final String TABLE_USERS = "users";
@@ -32,7 +32,12 @@ public class DBHelper extends SQLiteOpenHelper {
     private static final String COL_REG_DATE = "reg_date";
 
     public DBHelper(Context context) {
-        super(context, DB_NAME, null, DB_VERSION);
+        this(context, DB_NAME);
+    }
+
+    /** name = null создаёт базу в памяти (используется в инструментальных тестах). */
+    public DBHelper(Context context, String name) {
+        super(context, name, null, DB_VERSION);
     }
 
     @Override
@@ -48,13 +53,12 @@ public class DBHelper extends SQLiteOpenHelper {
                 COL_STATUS + " TEXT DEFAULT 'Бронзовый', " +
                 COL_ROLE + " TEXT DEFAULT 'user', " +
                 COL_REG_DATE + " TEXT)";
-        db.execSQL(createTable);
+        db.execSQL(createTable); createPurchases(db);
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        db.execSQL("DROP TABLE IF EXISTS " + TABLE_USERS);
-        onCreate(db);
+        if (oldVersion < 2) createPurchases(db);
     }
 
     // ===================== РЕГИСТРАЦИЯ =====================
@@ -79,7 +83,6 @@ public class DBHelper extends SQLiteOpenHelper {
         values.put(COL_REG_DATE, getCurrentDate());
 
         long id = db.insert(TABLE_USERS, null, values);
-        db.close();
 
         if (id == -1) return null;
 
@@ -94,9 +97,9 @@ public class DBHelper extends SQLiteOpenHelper {
         SQLiteDatabase db = this.getReadableDatabase();
         Cursor cursor = db.rawQuery(
                 "SELECT * FROM " + TABLE_USERS +
-                        " WHERE (" + COL_PHONE + "=? OR " + COL_CARD_NUMBER + "=?) AND " +
+                        " WHERE (" + COL_PHONE + "=? OR " + COL_PHONE + "=? OR " + COL_PHONE + "=? OR " + COL_CARD_NUMBER + "=?) AND " +
                         COL_PASSWORD + "=?",
-                new String[]{identifier, identifier, passwordHash});
+                new String[]{identifier, identifier.length() == 11 ? "8" + identifier.substring(1) : identifier, identifier.length() == 11 ? identifier.substring(1) : identifier, identifier, passwordHash});
 
         User user = null;
         if (cursor.moveToFirst()) {
@@ -131,7 +134,6 @@ public class DBHelper extends SQLiteOpenHelper {
         values.put(COL_CARD_ACTIVE, 1);
         int rows = db.update(TABLE_USERS, values, COL_ID + "=?",
                 new String[]{String.valueOf(userId)});
-        db.close();
         return rows > 0;
     }
 
@@ -143,7 +145,6 @@ public class DBHelper extends SQLiteOpenHelper {
         values.put(COL_NAME, newName);
         int rows = db.update(TABLE_USERS, values, COL_ID + "=?",
                 new String[]{String.valueOf(userId)});
-        db.close();
         return rows > 0;
     }
 
@@ -152,8 +153,8 @@ public class DBHelper extends SQLiteOpenHelper {
     private boolean isPhoneExists(String phone) {
         SQLiteDatabase db = this.getReadableDatabase();
         Cursor cursor = db.rawQuery(
-                "SELECT " + COL_ID + " FROM " + TABLE_USERS + " WHERE " + COL_PHONE + "=?",
-                new String[]{phone});
+                "SELECT " + COL_ID + " FROM " + TABLE_USERS + " WHERE " + COL_PHONE + " IN (?,?,?)",
+                new String[]{phone, phone.length() == 11 ? "8" + phone.substring(1) : phone, phone.length() == 11 ? phone.substring(1) : phone});
         boolean exists = cursor.getCount() > 0;
         cursor.close();
         return exists;
@@ -188,6 +189,45 @@ public class DBHelper extends SQLiteOpenHelper {
         return sdf.format(new Date());
     }
 
+    private void createPurchases(SQLiteDatabase db) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS purchases (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, title TEXT NOT NULL, amount INTEGER NOT NULL, redeemed INTEGER NOT NULL, earned INTEGER NOT NULL, created TEXT NOT NULL)");
+    }
+    public long totalPaid(int userId) {
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT COALESCE(SUM(amount-redeemed),0) FROM purchases WHERE user_id=?", new String[]{String.valueOf(userId)})) {
+            c.moveToFirst(); return c.getLong(0);
+        }
+    }
+    public String purchase(int userId, String title, int amount, int redeemed) {
+        SQLiteDatabase db = getWritableDatabase();
+        db.beginTransaction();
+        try {
+            User user = getUserById(userId);
+            if (user == null) throw new IllegalArgumentException("Войдите в аккаунт заново");
+            String error = com.example.karta.utils.Validator.amountError(amount);
+            if (error == null) error = com.example.karta.utils.Validator.redeemError(amount, redeemed, user.getBonusBalance());
+            if (error != null) throw new IllegalArgumentException(error);
+            long total = totalPaid(userId);
+            int earned = com.example.karta.utils.BonusRules.earned(amount, redeemed, total);
+            ContentValues receipt = new ContentValues();
+            receipt.put("user_id", userId); receipt.put("title", title); receipt.put("amount", amount);
+            receipt.put("redeemed", redeemed); receipt.put("earned", earned); receipt.put("created", getCurrentDate());
+            long id = db.insertOrThrow("purchases", null, receipt);
+            ContentValues values = new ContentValues();
+            values.put(COL_BONUS_BALANCE, user.getBonusBalance() - redeemed + earned);
+            values.put(COL_CARD_ACTIVE, 1);
+            values.put(COL_STATUS, com.example.karta.utils.BonusRules.level(total + amount - redeemed));
+            db.update(TABLE_USERS, values, "id=?", new String[]{String.valueOf(userId)});
+            db.setTransactionSuccessful();
+            return "Чек №" + id + " · " + title + "\n\nСумма: " + amount + " ₽\nСписано: " + redeemed + " бонусов\nОплачено: " + (amount-redeemed) + " ₽\nНачислено: +" + earned + " бонусов\n\nБаланс: " + (user.getBonusBalance()-redeemed+earned) + " Б";
+        } finally { db.endTransaction(); }
+    }
+    public java.util.List<String> history(int userId) {
+        java.util.List<String> result = new java.util.ArrayList<>();
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT id,title,amount,redeemed,earned,created FROM purchases WHERE user_id=? ORDER BY id DESC", new String[]{String.valueOf(userId)})) {
+            while (c.moveToNext()) result.add("Чек №" + c.getLong(0) + " · " + c.getString(5) + "\n" + c.getString(1) + "\nОплачено " + (c.getInt(2)-c.getInt(3)) + " ₽  ·  +" + c.getInt(4) + " Б / −" + c.getInt(3) + " Б");
+        }
+        return result;
+    }
     private User cursorToUser(Cursor cursor) {
         return new User(
                 cursor.getInt(cursor.getColumnIndexOrThrow(COL_ID)),
@@ -202,3 +242,5 @@ public class DBHelper extends SQLiteOpenHelper {
         );
     }
 }
+
+

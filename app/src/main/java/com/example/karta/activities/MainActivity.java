@@ -9,9 +9,7 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentTransaction;
 
 import com.example.karta.R;
-import com.example.karta.fragments.CatalogFragment;
-import com.example.karta.fragments.HomeFragment;
-import com.example.karta.fragments.NotificationsFragment;
+import com.example.karta.fragments.LoyaltyFragment;
 import com.example.karta.fragments.ProfileFragment;
 import com.example.karta.utils.SessionManager;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
@@ -25,11 +23,16 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.mainRoot), (v, insets) -> { androidx.core.graphics.Insets bars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars()); v.setPadding(bars.left, bars.top, bars.right, bars.bottom); return insets; });
 
         sessionManager = new SessionManager(this);
 
-        // Защита: если пользователь не авторизован - выкидываем на экран входа
-        if (!sessionManager.isLoggedIn()) {
+        // Защита: если пользователь не авторизован или его запись удалена - выкидываем на экран входа
+        com.example.karta.database.DBHelper dbHelper = new com.example.karta.database.DBHelper(this);
+        boolean userExists = sessionManager.isLoggedIn() && dbHelper.getUserById(sessionManager.getUserId()) != null;
+        dbHelper.close();
+        if (!userExists) {
+            sessionManager.logout();
             goToLogin();
             return;
         }
@@ -39,7 +42,7 @@ public class MainActivity extends AppCompatActivity {
         // По умолчанию открываем вкладку "Бонусы" (как на референсе дизайна)
         if (savedInstanceState == null) {
             bottomNav.setSelectedItemId(R.id.nav_bonus);
-            loadFragment(new HomeFragment());
+            loadFragment(LoyaltyFragment.page(0));
         }
 
         bottomNav.setOnItemSelectedListener(this::onNavItemSelected);
@@ -50,14 +53,12 @@ public class MainActivity extends AppCompatActivity {
 
         int itemId = item.getItemId();
 
-        if (itemId == R.id.nav_home) {
-            selectedFragment = new CatalogFragment(); // временно, пока нет отдельного экрана "Главная"
-        } else if (itemId == R.id.nav_catalog) {
-            selectedFragment = new CatalogFragment();
+        if (itemId == R.id.nav_catalog) {
+            selectedFragment = LoyaltyFragment.page(1);
         } else if (itemId == R.id.nav_bonus) {
-            selectedFragment = new HomeFragment();
+            selectedFragment = LoyaltyFragment.page(0);
         } else if (itemId == R.id.nav_notifications) {
-            selectedFragment = new NotificationsFragment();
+            selectedFragment = LoyaltyFragment.page(2);
         } else if (itemId == R.id.nav_profile) {
             selectedFragment = new ProfileFragment();
         } else {
@@ -81,3 +82,4 @@ public class MainActivity extends AppCompatActivity {
         finish();
     }
 }
+

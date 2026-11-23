@@ -39,9 +39,6 @@ public class User {
 
     // Форматирует номер карты для красивого отображения: 1234 5678 9012
     public String getFormattedCardNumber() {
-        if (cardNumber == null || cardNumber.length() != 12) return cardNumber;
-        return cardNumber.substring(0, 4) + " " +
-                cardNumber.substring(4, 8) + " " +
-                cardNumber.substring(8, 12);
+        return com.example.karta.utils.Formatters.card(cardNumber);
     }
 }

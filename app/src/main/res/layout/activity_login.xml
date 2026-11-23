@@ -27,7 +27,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
-            android:text="С возвращением!"
+            android:text="Матрёшка"
             android:textColor="@color/text_white"
             android:textSize="24sp"
             android:textStyle="bold" />
@@ -36,7 +36,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
-            android:text="Войдите, чтобы продолжить"
+            android:text="Выгода внутри. Ваша карта всегда рядом."
             android:textColor="@color/text_gray"
             android:textSize="14sp" />
 

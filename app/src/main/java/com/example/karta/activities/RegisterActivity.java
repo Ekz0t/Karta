@@ -3,7 +3,6 @@ package com.example.karta.activities;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
-import android.text.TextUtils;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -15,6 +14,7 @@ import com.example.karta.R;
 import com.example.karta.database.DBHelper;
 import com.example.karta.models.User;
 import com.example.karta.utils.PasswordUtils;
+import com.example.karta.utils.Validator;
 
 public class RegisterActivity extends AppCompatActivity {
 
@@ -28,6 +28,7 @@ public class RegisterActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_register);
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(findViewById(android.R.id.content), (v, insets) -> { androidx.core.graphics.Insets bars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars() | androidx.core.view.WindowInsetsCompat.Type.ime()); v.setPadding(bars.left, bars.top, bars.right, bars.bottom); return insets; });
 
         dbHelper = new DBHelper(this);
 
@@ -49,33 +50,16 @@ public class RegisterActivity extends AppCompatActivity {
     private void attemptRegister() {
         String name = etRegName.getText().toString().trim();
         String phone = etRegPhone.getText().toString().trim();
-        String password = etRegPassword.getText().toString().trim();
-        String confirmPassword = etRegConfirmPassword.getText().toString().trim();
+        String password = etRegPassword.getText().toString();
+        String confirmPassword = etRegConfirmPassword.getText().toString();
 
-        // Проверки заполнения
-        if (TextUtils.isEmpty(name) || TextUtils.isEmpty(phone) ||
-                TextUtils.isEmpty(password) || TextUtils.isEmpty(confirmPassword)) {
-            Toast.makeText(this, "Заполните все поля", Toast.LENGTH_SHORT).show();
+        // Проверки заполнения, длины имени, телефона и пароля
+        String error = Validator.registrationError(name, phone, password, confirmPassword);
+        if (error != null) {
+            Toast.makeText(this, error, Toast.LENGTH_SHORT).show();
             return;
         }
-
-        // Проверка телефона (простая: только цифры, минимум 10 символов)
-        String digitsOnly = phone.replaceAll("[^0-9]", "");
-        if (digitsOnly.length() < 10) {
-            Toast.makeText(this, "Введите корректный номер телефона", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        // Проверка совпадения паролей
-        if (!password.equals(confirmPassword)) {
-            Toast.makeText(this, "Пароли не совпадают", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        if (password.length() < 4) {
-            Toast.makeText(this, "Пароль должен быть не короче 4 символов", Toast.LENGTH_SHORT).show();
-            return;
-        }
+        String digitsOnly = com.example.karta.utils.BonusRules.phone(phone);
 
         String hashedPassword = PasswordUtils.hashPassword(password);
         User newUser = dbHelper.registerUser(name, digitsOnly, hashedPassword);
@@ -94,7 +78,7 @@ public class RegisterActivity extends AppCompatActivity {
                 .setTitle("Регистрация успешна! 🎉")
                 .setMessage("Ваша бонусная карта создана:\n\n" +
                         user.getFormattedCardNumber() +
-                        "\n\nКарта будет активирована при первой покупке в магазине.")
+                        "\n\nКарта будет активирована при первой покупке на демо-кассе. Данные хранятся только на этом устройстве.")
                 .setCancelable(false)
                 .setPositiveButton("Понятно", (dialog, which) -> {
                     startActivity(new Intent(this, LoginActivity.class));
@@ -103,3 +87,4 @@ public class RegisterActivity extends AppCompatActivity {
                 .show();
     }
 }
+

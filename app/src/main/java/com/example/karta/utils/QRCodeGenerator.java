@@ -16,15 +16,15 @@ public class QRCodeGenerator {
             QRCodeWriter writer = new QRCodeWriter();
             BitMatrix bitMatrix = writer.encode(content, BarcodeFormat.QR_CODE, size, size);
 
-            Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.RGB_565);
-
-            for (int x = 0; x < size; x++) {
-                for (int y = 0; y < size; y++) {
-                    bitmap.setPixel(x, y,
-                            bitMatrix.get(x, y) ? Color.BLACK : Color.WHITE);
+            // Заполняем массив пикселей и передаём его в Bitmap одним вызовом
+            int[] pixels = new int[size * size];
+            for (int y = 0; y < size; y++) {
+                for (int x = 0; x < size; x++) {
+                    pixels[y * size + x] = bitMatrix.get(x, y) ? Color.BLACK : Color.WHITE;
                 }
             }
-
+            Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.RGB_565);
+            bitmap.setPixels(pixels, 0, size, 0, 0, size, size);
             return bitmap;
 
         } catch (WriterException e) {

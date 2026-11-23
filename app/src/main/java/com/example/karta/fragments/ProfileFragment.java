@@ -23,7 +23,9 @@ import com.example.karta.activities.LoginActivity;
 import com.example.karta.database.DBHelper;
 import com.example.karta.models.User;
 import com.example.karta.utils.QRCodeGenerator;
+import com.example.karta.utils.Formatters;
 import com.example.karta.utils.SessionManager;
+import com.example.karta.utils.Validator;
 
 public class ProfileFragment extends Fragment {
 
@@ -81,7 +83,7 @@ public class ProfileFragment extends Fragment {
 
         // Имя и телефон
         tvProfileName.setText(currentUser.getName());
-        tvProfilePhone.setText(formatPhone(currentUser.getPhone()));
+        tvProfilePhone.setText(Formatters.phone(currentUser.getPhone()));
 
         // Первая буква имени для аватара
         if (!currentUser.getName().isEmpty()) {
@@ -115,17 +117,6 @@ public class ProfileFragment extends Fragment {
         }
     }
 
-    // Форматирование телефона для красивого отображения: +7 (999) 123-45-67
-    private String formatPhone(String phone) {
-        if (phone == null || phone.length() < 10) return phone;
-
-        String last10 = phone.length() > 10 ? phone.substring(phone.length() - 10) : phone;
-
-        return "+7 (" + last10.substring(0, 3) + ") " +
-                last10.substring(3, 6) + "-" +
-                last10.substring(6, 8) + "-" +
-                last10.substring(8, 10);
-    }
 
     // Диалог редактирования имени
     private void showEditNameDialog() {
@@ -134,7 +125,7 @@ public class ProfileFragment extends Fragment {
         EditText input = new EditText(getContext());
         input.setText(currentUser.getName());
         input.setInputType(InputType.TYPE_CLASS_TEXT);
-        input.setTextColor(getResources().getColor(R.color.text_white));
+        input.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.text_white));
         input.setHint("Введите новое имя");
         input.setPadding(40, 30, 40, 30);
 
@@ -143,16 +134,25 @@ public class ProfileFragment extends Fragment {
                 .setView(input)
                 .setPositiveButton("Сохранить", (dialog, which) -> {
                     String newName = input.getText().toString().trim();
-                    if (!newName.isEmpty()) {
-                        boolean updated = dbHelper.updateUserName(currentUser.getId(), newName);
-                        if (updated) {
-                            Toast.makeText(getContext(), "Имя обновлено", Toast.LENGTH_SHORT).show();
-                            loadProfileData();
-                        }
+                    String error = Validator.nameError(newName);
+                    if (error != null) {
+                        Toast.makeText(getContext(), error, Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    boolean updated = dbHelper.updateUserName(currentUser.getId(), newName);
+                    if (updated) {
+                        Toast.makeText(getContext(), "Имя обновлено", Toast.LENGTH_SHORT).show();
+                        loadProfileData();
                     }
                 })
                 .setNegativeButton("Отмена", null)
                 .show();
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        dbHelper.close();
     }
 
     private void logout() {
